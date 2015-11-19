@@ -81,6 +81,7 @@ struct temp{
 	char name[10];
 	int id;
 };
+
 void testCharOp()
 {
    
@@ -150,11 +151,42 @@ void testGetHostByName()
 	 }
 	 exit(0);
 }
+
+void testTime_t()
+{
+	time_t t;
+	t = time(NULL);
+	cout<<t<<endl;
+	exit(0);
+}
+class test{
+	public:
+	test *next;
+	int num;
+	test()
+	{
+		num = 0;
+		this->next = NULL;
+	}
+	test(test *t)
+	{
+		next = t;
+	}
+
+};
+
+void testClassSt()
+{
+	test *t = new test;
+	t->num = 1;
+	
+}
 int main()
 {
 	//testMap();
    //testfOpen();
    //testStringFind();
+   testTime_t();
    int fd = 0, res = 0, len = 0;
    const unsigned int server_port = 80;
    const char *server_ip = LOCAL;

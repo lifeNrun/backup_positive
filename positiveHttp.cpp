@@ -234,15 +234,20 @@ void positiveHttp::sendHttpResponse(int client_socket, int EpollFd)
 		{
 			if(strcmp(path,pool->name) == 0)
 			{
-				//cout<<"pool name "<<pool->name<<endl;
-				//cout<<"pool buffer"<<pool->buffer<<endl;
+				if(pool->fileState == 0)
+				{
+					pool->accessCount++;//被访问次数加1
+					pool->accessTime = time(NULL);//被访问的时间更新
+				}
+				//cout<<pool->name<<":"<<pool->accessCount<<":"<<pool->fileState<<endl;
 				strcpy(buffer,pool->buffer);
+				sendsize = send(client_socket, buffer, pool->length ,0);
 				break;
 			}
 			pool = pool->next;
 		}
 		//cout<<"send buffer"<<buffer<<endl;
-		sendsize = send(client_socket, buffer, pool->length ,0);
+		
 	}
 	#endif
 	if(sendsize <= 0)

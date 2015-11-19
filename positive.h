@@ -48,8 +48,9 @@ struct positive_pool_s
 	int length;
 	char name[160];
 	char *buffer;
+	time_t startTime;
 	time_t accessTime;//被访问时间
-	int  fileState; //文件状态
+	int  fileState; //文件状态 0,表示可增加次数，1表示不可增加
 	int  accessCount;//文件被访问次数统计
 	positive_pool_t*next;
 	positive_pool_t*start;
@@ -67,8 +68,10 @@ class PositiveServer
 		bool InitServer(int iPort);
 		static void *ListenThread(void * lpVoid);
 		static void *fileHandler(void *lpVoid);
+		static void * poolHandler(void *lpVoid);//对整个内存池进行处理
 		void initFiles();
 		void Run();
+		//static positive_pool_t* sortLink(positive_pool_t *head);
 	private:
 		static int   m_iEpollFd;
 		int	  m_iSock;
