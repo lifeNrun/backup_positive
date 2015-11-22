@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <map>
+#include <assert.h>
 #include "positive.h"
 using namespace std;
 //保存从http request解析下来的值
@@ -19,6 +20,25 @@ enum httpResponse
 	RES_OK = 0,
 	RES_BAD_METHOD,
 	RES_BAD_URL
+};
+typedef struct worker worker_thread;
+typedef struct pool thread_pool;
+struct worker
+{
+	void *(*process) (void* arg1, void*arg2);
+	void *arg1;
+	void *arg2;
+	worker_thread *next;
+};
+struct pool
+{
+	pthread_mutex_t queue_lock;
+	pthread_cond_t queue_ready;
+	worker_thread *queue_head;
+	int shutdown;
+	pthread_t *threadid;
+	int max_thread_num;
+	int cur_queue_size;
 };
 
 class positiveHttp
@@ -44,9 +64,18 @@ class positiveHttp
 		void recvHttpRequest(int client_socket, int EpollFd);
 		void sendHttpResponse(int client_socket, int EpollFd);
 		~positiveHttp(){};
+		//线程池操作
+		void pool_init(int max_thread_num);
+		static void* thread_routine(void *arg);
+		static void* process (void *arg1, void*arg2);
+		int pool_add_worker(void*(*process)(void*arg1,void*arg2), void*arg1,void *arg2);
+		int pool_destroy();
+		
 	private:
+		static thread_pool *pos_thread_pool;
 		static const char badRequest[];
 		static const char notFound[];
+		static const char notFoundHead[];
 		string configPath;//配置文件路径
 		string docPath;//服务器文件路径
 		string domainName;//域名

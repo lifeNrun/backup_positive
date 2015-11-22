@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <map>
+#include <pthread.h>
+#include <assert.h>
 using namespace std;
 
 #define HTTP_BUFFER_SIZE 1024*800
@@ -159,34 +161,146 @@ void testTime_t()
 	cout<<t<<endl;
 	exit(0);
 }
-class test{
-	public:
-	test *next;
-	int num;
-	test()
-	{
-		num = 0;
-		this->next = NULL;
-	}
-	test(test *t)
-	{
-		next = t;
-	}
-
+typedef struct worker worker_thread;
+typedef struct pool thread_pool;
+struct worker
+{
+	void *(*process) (void* arg);
+	void *arg;
+	worker_thread *next;
+};
+struct pool
+{
+	pthread_mutex_t queue_lock;
+	pthread_cond_t queue_ready;
+	worker_thread *queue_head;
+	int shutdown;
+	pthread_t *threadid;
+	int max_thread_num;
+	int cur_queue_size;
 };
 
-void testClassSt()
+int pool_add_worker(void *(*process)(void *arg),void *arg);
+//void* thread_routing(void *arg);
+static thread_pool *pos_thread_pool = NULL;
+
+void* thread_routine(void *arg)
 {
-	test *t = new test;
-	t->num = 1;
+	while(1)
+	{
+		pthread_mutex_lock(&(pos_thread_pool->queue_lock));
+		while((pos_thread_pool->cur_queue_size == 0)&& (!pos_thread_pool->shutdown))
+		{
+			pthread_cond_wait(&(pos_thread_pool->queue_ready),&(pos_thread_pool->queue_lock));
+		}
+		
+		if(pos_thread_pool->shutdown)
+		{
+			pthread_mutex_unlock(&(pos_thread_pool->queue_lock));
+			pthread_exit(NULL);
+		}
+		
+		assert(pos_thread_pool->cur_queue_size != 0);
+		assert(pos_thread_pool->queue_head != NULL);
+		
+		pos_thread_pool->cur_queue_size--;
+		worker_thread *worker = pos_thread_pool->queue_head;
+		pos_thread_pool->queue_head = worker->next;
+		pthread_mutex_unlock(&(pos_thread_pool->queue_lock));
+		
+		(*(worker->process))(worker->arg);
+		free(worker);
+		worker = NULL;
+	}
+	pthread_exit(NULL);
+}
+void pool_init(int max_thread_num)
+{
+	pos_thread_pool = (thread_pool*)malloc(sizeof(thread_pool));
+	pthread_mutex_init(&(pos_thread_pool->queue_lock),NULL);
+	pthread_cond_init(&(pos_thread_pool->queue_ready),NULL);
 	
+	pos_thread_pool->queue_head = NULL;
+	pos_thread_pool->max_thread_num = max_thread_num;
+	pos_thread_pool->cur_queue_size = 0;
+	pos_thread_pool->shutdown = 0;
+	pos_thread_pool->threadid = (pthread_t*)malloc(max_thread_num*sizeof(pthread_t));
+	for(int i = 0; i < max_thread_num; ++i)
+	{
+		pthread_create(pos_thread_pool->threadid,NULL,thread_routine,NULL);
+	}
+}
+
+int pool_add_worker(void*(*process)(void*arg), void*arg)
+{
+	worker_thread *worker = (worker_thread*)malloc(sizeof(worker_thread));
+	worker->process = process;
+	worker->arg = arg;
+	worker->next = NULL;
+	pthread_mutex_lock(&(pos_thread_pool->queue_lock));
+	worker_thread *member = pos_thread_pool->queue_head;
+	if(member != NULL)
+	{
+		while(member->next != NULL)
+			member = member->next;
+		member->next = worker;
+	}
+	else{
+		pos_thread_pool->queue_head = worker;
+	}
+	assert(pos_thread_pool->queue_head!=NULL);
+	pos_thread_pool->cur_queue_size++;
+	pthread_mutex_unlock(&(pos_thread_pool->queue_lock));
+	pthread_cond_signal(&(pos_thread_pool->queue_ready));
+	return 0;
+}
+
+
+int pool_destroy()
+{
+	if(pos_thread_pool->shutdown)
+		return -1;
+	pos_thread_pool->shutdown = 1;
+	pthread_cond_broadcast(&(pos_thread_pool->queue_ready));
+	for(int i = 0; i < pos_thread_pool->max_thread_num;++i)
+		pthread_join(pos_thread_pool->threadid[i], NULL);
+	worker_thread *head = NULL;
+	while(pos_thread_pool->queue_head != NULL)
+	{
+		head = pos_thread_pool->queue_head;
+		pos_thread_pool->queue_head = pos_thread_pool->queue_head->next;
+		free(head);
+	}
+	pthread_mutex_destroy(&(pos_thread_pool->queue_lock));
+	pthread_cond_destroy(&(pos_thread_pool->queue_ready));
+	free(pos_thread_pool);
+	pos_thread_pool = NULL;
+	return 0;
+}
+void *process (void *arg){
+	printf ("threadid is 0x%x, working on task %d\n", pthread_self (),*(int *) arg);  
+	sleep(1);
+	return NULL;
+}
+void testThreadPool()
+{
+	pool_init(3);
+	int *workingNum = (int*)malloc(sizeof(int)*10);
+	for(int i = 0; i < 10; i++)
+	{
+		workingNum[i] = i;
+		pool_add_worker(process,&workingNum[i]);
+	}
+	sleep(5);
+	exit(0);
 }
 int main()
 {
 	//testMap();
    //testfOpen();
    //testStringFind();
-   testTime_t();
+   testThreadPool();
+   //testTime_t();
    int fd = 0, res = 0, len = 0;
    const unsigned int server_port = 80;
    const char *server_ip = LOCAL;

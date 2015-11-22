@@ -1,4 +1,6 @@
 #include "positiveHttp.h"
+#define  POOL_SORT 0
+#define  THREAD_EPOLL 1
 using namespace std;
 pthread_mutex_t mutex;
 void printLink(positive_pool_t *head);
@@ -94,7 +96,7 @@ void *PositiveServer::ListenThread(void* lpVoid)
         {
             struct epoll_event ev;
             //起始设置只监听读
-            ev.events = EPOLLIN|EPOLLERR|EPOLLHUP;
+            ev.events = POSITIVE_EPOLLIN;
             ev.data.fd = client_socket;
             epoll_ctl(pTerminalServer->m_iEpollFd, EPOLL_CTL_ADD, client_socket, &ev);
         }
@@ -110,6 +112,8 @@ void *PositiveServer::clientEventReadHandler(void* lpVoid)
 	{
 		pthread_mutex_lock(&mutex);//get lock
 		nfds = epoll_wait(m_iEpollFd, events, _MAX_SOCKFD_COUNT, -1);
+		if(nfds > 50)
+		cout<<"clientEventReadHandler "<<nfds<<endl;
 		//pthread_mutex_unlock(&mutex);//release lock
 		//printf("nfds : %d\n",nfds);
 		//pthread_mutex_lock(&mutex);//get lock
@@ -153,7 +157,8 @@ void *PositiveServer::clientEventWriteHandler(void* lpVoid)
 		pthread_mutex_lock(&mutex);//get lock
 		nfds = epoll_wait(m_iEpollFd, events, _MAX_SOCKFD_COUNT, -1);
 		//printf("nfds : %d\n",nfds);
-		
+		if(nfds > 50)
+		cout<<"clientEventWriteHandler "<<nfds<<endl;
 		for(int i = 0; i < nfds; ++i)
 		{
 			client_socket = events[i].data.fd;
@@ -206,12 +211,16 @@ void PositiveServer::Run()
 	positiveHttp http;
 	int client_socket = 0;
 	int nfds = 0;
+	//初始化线程池
+	http.pool_init(THREAD_NUM);
 	for(;;)
 	{
 		//pthread_mutex_lock(&mutex);
 		//epoll_wait(m_iEpollFd, events, _MAX_SOCKFD_COUNT, -1);
 		//pthread_mutex_unlock(&mutex);//release lock
 		nfds = epoll_wait(m_iEpollFd, events, _MAX_SOCKFD_COUNT, -1);
+		if(nfds > 100)
+		cout<<"events "<<nfds<<endl;
 		for(int i = 0; i < nfds; ++i)
 		{
 			client_socket = events[i].data.fd;
@@ -292,32 +301,27 @@ void PositiveServer::initFiles()
 		}
 	}
 	positive_pool->end->next = NULL;
-	//free(temp);//删除临时节点
-	//temp = NULL;
-	printLink(positive_pool);
-	#if 0
-	while(positive_pool != NULL)
-	{
-		cout<<positive_pool->name<<endl;
-		cout<<positive_pool->buffer<<endl;
-		positive_pool = positive_pool->next;
+	if(temp != positive_pool){
+		free(temp);//删除临时节点
+		temp = NULL;
 	}
-	#endif
+	
+	//printLink(positive_pool);
+	//文件管理线程
+	#if POOL_SORT
 	if(-1 == pthread_create(&m_ClientHandlerThreadId,0,fileHandler,NULL))
 	{
 		perror("pthread_create");
 		exit(-1);
 	}
 	
-
+	//内存池管理
 	if(-1 == pthread_create(&m_ClientHandlerThreadId,0,poolHandler,NULL))
 	{
 		perror("pthread_create");
 		exit(-1);
 	}
-	
-	//exit(0);
-	
+	#endif
 }
 //检查目录下的文件是否有所改动
 void* PositiveServer::fileHandler(void *lpVoid)
@@ -384,6 +388,7 @@ void* PositiveServer::fileHandler(void *lpVoid)
 				}
 				if(0 == flag)//添加新的文件进入内存池
 				{
+					cout<<"add new"<<endl;
 					temp = positive_pool->end;
 					temp->next = (positive_pool_t*)malloc(sizeof(positive_pool_t));
 					temp = temp->next;
@@ -413,24 +418,18 @@ void* PositiveServer::fileHandler(void *lpVoid)
 		}
 		//cout<<"end"<<endl;
 		//每两秒检查一次
-		sleep(2);
+		sleep(10);
 	}
 }
 positive_pool_t*  sortLink(positive_pool_t *head)
 {
-	positive_pool_t *pfirst;      /* 排列后有序链的表头指针 */  
-    positive_pool_t *ptail;       /* 排列后有序链的表尾指针 */  
-    positive_pool_t *pminBefore;  /* 保留键值更小的节点的前驱节点的指针 */  
-    positive_pool_t *pmin;        /* 存储最小节点   */  
-    positive_pool_t *p;           /* 当前比较的节点 */ 
-	positive_pool_t *res = head;
-	positive_pool_t *temp = head;
-    pfirst = NULL;  
+    positive_pool_t *temp = head;
 	int flag = 0;
-	//printLink(head);
+    
+	//检查是否要排序
 	while(temp->next != NULL)
 	{
-		if(temp->accessCount < temp->next->accessCount)
+		if(temp->accessCount <  temp->next->accessCount)
 		{
 			flag = 1;
 			break;
@@ -438,86 +437,77 @@ positive_pool_t*  sortLink(positive_pool_t *head)
 		temp = temp->next;
 	}
 	if(flag == 0)
-		return res;
-    while (head != NULL)         /*在链表中找键值最小的节点。*/  
+	{
+		return head;
+	}
+	
+	//真正的排序
+	positive_pool_t *pfirst;      /* 排列后有序链的表头指针 */  
+    positive_pool_t *ptail;       /* 排列后有序链的表尾指针 */  
+    positive_pool_t *pmaxBefore;  /* 保留键值更小的节点的前驱节点的指针 */  
+    positive_pool_t *pmax;        /* 存储最小节点   */  
+    positive_pool_t *p;           /* 当前比较的节点 */  
+	pfirst = NULL;  
+    while (head != NULL)         
     {  
-    /* 注意：这里for语句就是体现选择排序思想的地方 */  
-        for (p = head, pmin = head; p->next != NULL; p = p->next) /*循环遍历链表中的节点，找出此时最小的节点。*/  
-        {  
-            if (p->next->accessCount > pmin->accessCount) /*找到一个比当前min小的节点。*/  
-            {  
-                pminBefore = p;           /*保存找到节点的前驱节点：显然p->next的前驱节点是p。*/  
-                pmin       = p->next;     /*保存键值更小的节点。*/  
-            }  
-        }  
-    /*上面for语句结束后，就要做两件事；一是把它放入有序链表中；二是根据相应的条件判断，安排它离开原来的链表。*/  
-      
-        /*第一件事*/  
-        if (pfirst == NULL)     /* 如果有序链表目前还是一个空链表                      */  
-        {  
-            pfirst = pmin;      /* 第一次找到键值最小的节点。                          */  
-            ptail  = pmin;      /* 注意：尾指针让它指向最后的一个节点。                */  
-        }  
-        else                    /* 有序链表中已经有节点                                */  
-        {  
-            ptail->next = pmin; /* 把刚找到的最小节点放到最后，即让尾指针的next指向它。*/  
-            ptail = pmin;       /* 尾指针也要指向它。                                  */  
-        }  
-  
-        /*第二件事*/  
-        if (pmin == head)        /* 如果找到的最小节点就是第一个节点                    */  
-        {  
-            head = head->next;   /* 显然让head指向原head->next,即第二个节点，就OK       */  
-        }  
-        else /*如果不是第一个节点*/  
-        {  
-            pminBefore->next = pmin->next; /*前次最小节点的next指向当前pmin的next,这样就让pmin离开了原链表。*/  
-        }  
+		/*在链表中找键值最小的节点。*/  
+		for(p=pmax=pmaxBefore = head;p->next != NULL;p = p->next)
+		{
+			if(pmax->accessCount < p->next->accessCount)
+			{
+				pmax = p->next;
+				pmaxBefore = p;
+			}
+		}
+		if(pfirst == NULL)
+		{
+			pfirst = pmax;
+			ptail  = pmax;
+		}
+		else{
+			ptail->next = pmax;
+			ptail = ptail->next;
+		}
+		
+		if(pmax == head)
+		{
+			head = head->next;//头指针前移
+		}
+		else{
+			pmaxBefore->next = pmax->next;//从原链表中移除pmax
+		}
     }  
-  
+
     if (pfirst != NULL)     /*循环结束得到有序链表first                */  
     {  
         ptail->next = NULL; /*单向链表的最后一个节点的next应该指向NULL */   
-    }  
-    //head = pfirst; 
-#if 0	
-    positive_pool_t * pReversedHead = NULL; // 反转后的新链表头指针，初始为NULL  
-    positive_pool_t * pCurrent = pfirst->next;  
-    while(pCurrent != NULL)  
-    {  
-        positive_pool_t * pTemp = pCurrent;  
-        pCurrent = pCurrent->next;  
-        pTemp->next = pReversedHead; // 将当前结点摘下，插入新链表的最前端  
-        pReversedHead = pTemp;  
-    }   
-    return pReversedHead;  
-#endif
-//printLink(pfirst);
-return pfirst;
+    } 
+	else{
+		return head;
+	}
+	return 	pfirst;
 }
 void printLink(positive_pool_t *head)
 {
-	positive_pool_t *temp = head;
 	cout<<"\n+---------------------------+"<<endl;
-	while(temp != NULL)
+	while(head != NULL)
 	{
-		cout<<temp->name<<":"<<temp->accessCount<<":"<<temp->fileState<<endl;
-		temp = temp->next;
+		cout<<head->name<<":"<<head->accessCount<<":"<<head->fileState<<endl;
+		head = head->next;
 	}
 	cout<<"+---------------------------+"<<endl;
 }
 void setState(positive_pool_t *head, int state)
 {
-	positive_pool_t *temp = head;
 	time_t now;
-	
 	now = time(NULL);
-	while(temp != NULL)
+	
+	while(head != NULL)
 	{
-		temp->fileState = state;
-		if((now - temp->accessTime)>10);//超过10分钟没有被访问，那么访问次数减半，相应的在内存池的位置也会靠后
-			temp->accessCount = temp->accessCount/2;
-		temp = temp->next;
+		head->fileState = state;
+		if((now - head->accessTime)>20);//超过10分钟没有被访问，那么访问次数减半，相应的在内存池的位置也会靠后
+			head->accessCount = head->accessCount/2;
+		head = head->next;
 	}
 }
 void* PositiveServer::poolHandler(void *lpVoid)
@@ -534,7 +524,7 @@ void* PositiveServer::poolHandler(void *lpVoid)
 		setState(positive_pool,0);
 		positive_pool->start = positive_pool;
 		printLink(positive_pool->start);
-		sleep(20);
+		sleep(10);
 		//positive_pool->next->next->next->accessCount = 1;
 	}
 }
