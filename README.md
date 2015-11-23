@@ -8,7 +8,7 @@ Author: Positive Persist. 1018507406@qq.com<br/>
 Copy right 2015,Positive Persist.
 ####Function
 1.GET,MIME<br/>
-2.High performace just like nginx
+2.High performace almost like nginx
 ####Technology
 1.Memory pool in managing files.<br/>
 2.Multiple IO, Epoll<br/>
