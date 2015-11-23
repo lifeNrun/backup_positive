@@ -10,9 +10,9 @@ Copy right 2015,Positive Persist.
 1.GET,MIME<br/>
 2.High performace just like nginx
 ####Technology
-1.Memory pool in mamaging files.<br/>
+1.Memory pool in managing files.<br/>
 2.Multiple IO, Epoll<br/>
-3.thread pool in sending large file.
+3.Thread pool in sending large file.
 
 
 
