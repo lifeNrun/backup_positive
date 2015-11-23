@@ -17,6 +17,7 @@ Copy right 2015,Positive Persist.
 
 ####Performance
 Test by ab2 of Apache.
+To Little files, the speed of Positive almost can reach the speed of Nginx.
 ```
 linux-76r3:/home/yuan # ab2 -c 20000 -n 20000 http://192.168.27.125/index.html
 This is ApacheBench, Version 2.3 <$Revision: 655654 $>
