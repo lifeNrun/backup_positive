@@ -1,12 +1,16 @@
 objects = positive.o positiveHttp.o 
-command = g++ -lpthread
+compile = g++ -lpthread
 positive:$(objects)
-	$(command)  $(objects) -o positive
+	$(compile)  $(objects) -o positive
+	rm $(objects)
 positive.o: positive.cpp positive.h
-	$(command) -c  positive.cpp
+	$(compile)  -c positive.cpp
 positiveHttp.o: positiveHttp.cpp positiveHttp.h
-	$(command) -c  positiveHttp.cpp
+	$(compile)  -c positiveHttp.cpp
 debug:
-	$(command) -g $(objects) -o positive
+	$(compile)  -c positive.cpp
+	$(compile)  -c positiveHttp.cpp
+	$(compile) -g $(objects) -o positive
+	rm $(objects)
 clean:
-	rm $(objects) positive
+	rm positive
