@@ -1,14 +1,14 @@
 #include "positiveHttp.h"
 #define PERFORMANCE_DEBUG 0
 #define HIGH_PERFORMANCE 0
-#define THREAD_POOL 1
+#define THREAD_POOL 1 //开启线程池
 const char  positiveHttp::badRequest[]="<html><head><title>400 Bad Request</title></head><body bgcolor=\"white\"> \
 		<center><h1>400 Bad Request</h1></center><hr><center>POSITIVE/1.0.0</center></body></html>";
 const char  positiveHttp::notFound[]="<html><head><title>404 Not Found</title></head><body bgcolor=\"white\"> \
 		<center><h1>404 Not Found</h1></center><hr><center>POSITIVE/1.0.0</center></body></html>";
 const char  positiveHttp::notFoundHead[]="HTTP/1.1 302 not Found\r\nServer: Positive\r\nContent-Length: 222\r\nConnection: Close \
 \r\nContent-Type: text/html; charset=utf-8\r\n\r\n";
-//void* thread_routing(void *arg);
+
 thread_pool * positiveHttp::pos_thread_pool = NULL;
 void* positiveHttp::thread_routine(void *arg)
 {
@@ -33,8 +33,8 @@ void* positiveHttp::thread_routine(void *arg)
 		worker_thread *worker = pos_thread_pool->queue_head;
 		pos_thread_pool->queue_head = worker->next;
 		pthread_mutex_unlock(&(pos_thread_pool->queue_lock));
-		//执行process
-		(*(worker->process))(worker->arg1,worker->arg2);
+		//执行positive_process
+		(*(worker->positive_process))(worker->arg1,worker->arg2);
 		//执行完毕后，释放worker
 		free(worker);
 		worker = NULL;
@@ -58,10 +58,10 @@ void positiveHttp::pool_init(int max_thread_num)
 	}
 }
 
-int positiveHttp::pool_add_worker(void*(*process)(void*arg1,void*arg2), void*arg1,void *arg2)
+int positiveHttp::pool_add_worker(void*(*positive_process)(void*arg1,void*arg2), void*arg1,void *arg2)
 {
 	worker_thread *worker = (worker_thread*)malloc(sizeof(worker_thread));
-	worker->process = process;
+	worker->positive_process = positive_process;
 	worker->arg1 = arg1;
 	worker->arg2 = arg2;
 	worker->next = NULL;
@@ -82,20 +82,14 @@ int positiveHttp::pool_add_worker(void*(*process)(void*arg1,void*arg2), void*arg
 	pthread_cond_signal(&(pos_thread_pool->queue_ready));
 	return 0;
 }
-void* positiveHttp::process (void *arg1, void*arg2){
+void* positiveHttp::positive_process (void *arg1, void*arg2){
 	positive_pool_t *memPool = (positive_pool_t*)arg1;
 	long  client_socket = (long)arg2;
-	//从epoll队列里把client_socket清理掉
-	//struct epoll_event event_del;
-	//event_del.data.fd = client_socket;
-	//event_del.events = 0;
-	//epoll_ctl(EpollFd, EPOLL_CTL_DEL, client_socket, &event_del);
-	
 	int length = HTTP_BUFFER_SIZE;
 	int left = memPool->length;
 	int i = 0;
 	int sendsize = 0;
-	//cout<<"client "<<client_socket<<endl;
+
 	while(1){
 		if(sendsize == -1)
 		{
@@ -116,28 +110,7 @@ void* positiveHttp::process (void *arg1, void*arg2){
 	close(client_socket);
 	return NULL;
 }
-int positiveHttp::pool_destroy()
-{
-	if(pos_thread_pool->shutdown)
-		return -1;
-	pos_thread_pool->shutdown = 1;
-	pthread_cond_broadcast(&(pos_thread_pool->queue_ready));
-	for(int i = 0; i < pos_thread_pool->max_thread_num;++i)
-		pthread_join(pos_thread_pool->threadid[i], NULL);
-	free(pos_thread_pool->threadid);
-	worker_thread *head = NULL;
-	while(pos_thread_pool->queue_head != NULL)
-	{
-		head = pos_thread_pool->queue_head;
-		pos_thread_pool->queue_head = pos_thread_pool->queue_head->next;
-		free(head);
-	}
-	pthread_mutex_destroy(&(pos_thread_pool->queue_lock));
-	pthread_cond_destroy(&(pos_thread_pool->queue_ready));
-	free(pos_thread_pool);
-	pos_thread_pool = NULL;
-	return 0;
-}
+
 bool positiveHttp::checkRequest(int client_socket,positive_http_header_t parseInfo)
 {
 	//检查method
@@ -151,26 +124,21 @@ bool positiveHttp::checkRequest(int client_socket,positive_http_header_t parseIn
 	//检查url
 	char *path;
 	int length 	= parseInfo.url.length();
-	//cout<<"length = "<<length<<endl;
 	path = (char*)malloc((length+1)*sizeof(char));
 	parseInfo.url.copy(path,length,0);
 	path[length] = '\0';
-	//printf("path = %s\n",path);
 	//对path进行处理
 	if(path[0] == '/'&&length!=1)
 	{
-		//把\0也拷贝了
 		memmove(path,path+1,length);
 	}
 	//判断文件是否存在
 	positive_pool_t *pool;
 	pool = PositiveServer::positive_pool;
-	//cout<<"path = "<<path<<endl;
 	while(pool != NULL)
 	{
 		if(strcmp(path,pool->name) == 0)
 		{
-			//cout<<"pool->name = "<<pool->name<<endl;
 			requestUrl[client_socket] = path;
 			http_response[client_socket] = RES_OK;
 			free(path);
@@ -198,7 +166,6 @@ void positiveHttp::recvHttpRequest(int client_socket, int EpollFd)
 	 ev.data.fd = client_socket;//记录句柄
 	 epoll_ctl(EpollFd, EPOLL_CTL_MOD, client_socket,&ev);
 	#else
-		
 	 char buffer[HTTP_HEAD_SIZE];
 	 string httpRequest;
 	 positive_http_header_t parseInfo;
@@ -317,13 +284,10 @@ int positiveHttp::sendHttpHead(int client_socket,int length)
 		if(typeDotPos != string::npos)
 		{
 			contentType = requestUrl[client_socket].substr(typeDotPos+1);
-			//cout<<contentType<<endl;
 		}
 		head.append(" 200 OK\r\n");
 	}
-	head.append("Server: Positive\r\n");
-	//printf(temp,"Content-Length: %d\r\n",length);
-	//head.append(temp);
+	head.append("Server: Positive 1.0\r\n");
 	head.append("Connection: Close\r\n");
 	
 	if(supportFiles.find(contentType) != supportFiles.end())
@@ -333,8 +297,6 @@ int positiveHttp::sendHttpHead(int client_socket,int length)
 	else{
 		head.append(supportFiles["html"]);
 	}
-	
-	//cout<<endl<<head<<endl;
 	length = head.length();
 	char buffer[length];
 	bzero(buffer,length);
@@ -358,13 +320,11 @@ void positiveHttp::sendHttpResponse(int client_socket, int EpollFd)
 	epoll_ctl(EpollFd, EPOLL_CTL_DEL, client_socket, &event_del);
 	return;
 	#endif
-	
 	//检查要返回的类型
 	#if PERFORMANCE_DEBUG //屏蔽掉读文件过程，直接发送Error信息
 		sendHttpHead(client_socket,0);
 		sendError(client_socket);
 		close(client_socket);
-		
 	#else 
 	if(http_response[client_socket] != RES_OK)
 	{
@@ -398,24 +358,13 @@ void positiveHttp::sendHttpResponse(int client_socket, int EpollFd)
 	#if THREAD_POOL
 		if(pool->length >= MAX_FILE_SIZE)
 		{
-			//int *arg2 = &client_socket;
-			//void*(*ptr)(void*arg1,void*arg2);
-			//ptr = process;
-			//ptr = process;
-			//process(2,3);
-			//process必须变为静态的成员变量
-			//cout<<"client socket "<<client_socket<<endl;
-			//cout<<"mempool length "<<pool->length<<endl;
-			pool_add_worker(process,pool,(void*)client_socket);
+			pool_add_worker(positive_process,pool,(void*)client_socket);
 		}
 		else{
 			length = HTTP_BUFFER_SIZE;
 			int left = pool->length;
 			int i = 0;
-			//char tempbuffer[HTTP_BUFFER_SIZE];
-			//bzero(tempbuffer,sizeof(tempbuffer));
 			sendsize = 0;
-			//void *ptr;
 			while(1){
 				if(sendsize != -1)
 				{
@@ -434,10 +383,7 @@ void positiveHttp::sendHttpResponse(int client_socket, int EpollFd)
 		length = HTTP_BUFFER_SIZE;
 		int left = pool->length;
 		int i = 0;
-		//char tempbuffer[HTTP_BUFFER_SIZE];
-		//bzero(tempbuffer,sizeof(tempbuffer));
 		sendsize = 0;
-		//void *ptr;
 		while(1){
 			if(sendsize != -1)
 			{
@@ -468,33 +414,6 @@ void positiveHttp::sendHttpResponse(int client_socket, int EpollFd)
 		ev.data.fd = client_socket;
 		epoll_ctl(EpollFd, EPOLL_CTL_MOD,client_socket, &ev);
 	}
-	//把requestUrl[client_socket]设置为空
 	requestUrl[client_socket] = "";
 }
 
-int positiveHttp::getDataFromUrl(char buffer[],int client_socket)
-{
-	unsigned long filesize = 0;
-	struct stat statbuff;
-	int length = requestUrl[client_socket].length();
-	char path[length+1];
-	requestUrl[client_socket].copy(path,length,0);
-	path[length] = '\0';
-	//printf("getDataFromUrl:path = %s\n",path);
-	if(stat(path,&statbuff)<0){
-		return -1;
-	}
-	else{
-		filesize = statbuff.st_size;
-	}
-	FILE* fp;
-	fp = fopen(path,"r");
-	if(fp == NULL)
-	{
-		perror("fopen");
-		return -1;
-	}
-	fread(buffer,sizeof(char),filesize,fp);
-	fclose(fp);
-	return filesize;
-}

@@ -24,10 +24,8 @@
 #define HTTP_HEAD_SIZE 1024
 #define ERROR_BUFFER_SIZE 
 #define THREAD_NUM  10000
-//#define POSITIVE_EPOLLIN  EPOLLIN|EPOLLERR|EPOLLHUP|EPOLLET
 #define POSITIVE_EPOLLIN  EPOLLIN|EPOLLET
 #define POSITIVE_EPOLLOUT EPOLLOUT|EPOLLET
-//#define POSITIVE_EPOLLOUT EPOLLOUT|EPOLLERR|EPOLLHUP|EPOLLET
 using namespace std;
 //处理字符串的类
 class stringOp
@@ -50,7 +48,6 @@ typedef struct positive_pool_s  positive_pool_t;
 //用于存储服务端网络文件的内存池
 struct positive_pool_s
 {
-	//char url[160];
 	int length;
 	char name[160];
 	char *buffer;
@@ -66,24 +63,26 @@ struct positive_pool_s
 class PositiveServer
 {
 	public:
-	    static positive_pool_t *positive_pool;
+		static positive_pool_t *positive_pool;
 		PositiveServer();
 		~PositiveServer();
 		static void *clientEventReadHandler(void * lpVoid);
 		static void *clientEventWriteHandler(void * lpVoid);
 		bool InitServer(int iPort);
 		static void *ListenThread(void * lpVoid);
+		//内存池操作
+		void getPool();
 		static void *fileHandler(void *lpVoid);
 		static void * poolHandler(void *lpVoid);//对整个内存池进行处理
 		void initFiles();
 		void Run();
-		//static positive_pool_t* sortLink(positive_pool_t *head);
+		static positive_pool_t*  sortLink(positive_pool_t *head);
 	private:
 		static int   m_iEpollFd;
 		int	  m_iSock;
 		pthread_t m_ListenThreadId;//监听线程句柄
 		pthread_t m_ClientHandlerThreadId;//监听线程句柄
-		//static struct epoll_event events[_MAX_SOCKFD_COUNT];
+		epoll_event events[_MAX_SOCKFD_COUNT];
 };
 
 #endif

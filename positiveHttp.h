@@ -25,7 +25,7 @@ typedef struct worker worker_thread;
 typedef struct pool thread_pool;
 struct worker
 {
-	void *(*process) (void* arg1, void*arg2);
+	void *(*positive_process) (void* arg1, void*arg2);
 	void *arg1;
 	void *arg2;
 	worker_thread *next;
@@ -47,13 +47,11 @@ class positiveHttp
 	    positiveHttp(){
 			httpMethod = ("GET HEAD POST");
 			bzero(http_response,_MAX_SOCKFD_COUNT);
-			//bzero(requestUrl,_MAX_SOCKFD_COUNT);
 			supportFiles["jpg"] = "Content-Type: image/jpg\r\n\r\n";
 			supportFiles["jpeg"] = "Content-Type: image/jpeg\r\n\r\n";
 			supportFiles["gif"] = "Content-Type: image/gif\r\n\r\n";
 			supportFiles["txt"] = "Content-Type: text/plain\r\n\r\n";
 			supportFiles["html"] = "Content-Type: text/html; charset=utf-8\r\n\r\n";
-			//supportFiles = "jpg,html,txt,png";
 		};
 		int sendHttpHead(int client_socket,int length);
 		void sendError(int client_socket);
@@ -67,10 +65,8 @@ class positiveHttp
 		//Ïß³Ì³Ø²Ù×÷
 		void pool_init(int max_thread_num);
 		static void* thread_routine(void *arg);
-		static void* process (void *arg1, void*arg2);
+		static void* positive_process (void *arg1, void*arg2);
 		int pool_add_worker(void*(*process)(void*arg1,void*arg2), void*arg1,void *arg2);
-		int pool_destroy();
-		
 	private:
 		static thread_pool *pos_thread_pool;
 		static const char badRequest[];

@@ -1,5 +1,5 @@
 #include "positiveHttp.h"
-#define  POOL_SORT 0
+#define  POOL_SORT 1
 #define  THREAD_EPOLL 1
 using namespace std;
 pthread_mutex_t mutex;
@@ -12,9 +12,8 @@ PositiveServer::~PositiveServer()
 {
     close(m_iSock);
 }
-struct epoll_event events[_MAX_SOCKFD_COUNT];
 int PositiveServer::m_iEpollFd;
-positive_pool_t* PositiveServer::positive_pool;
+positive_pool_t * PositiveServer::positive_pool;
 
 bool PositiveServer::InitServer(int iPort)
 {
@@ -102,112 +101,12 @@ void *PositiveServer::ListenThread(void* lpVoid)
         }
     }
 }
-//逻辑辑上好像有点问题，两个线程存在两个http对象啊。
-void *PositiveServer::clientEventReadHandler(void* lpVoid)
-{
-	positiveHttp http;
-	int client_socket = 0;
-	int nfds = 0;
-	while(true)
-	{
-		pthread_mutex_lock(&mutex);//get lock
-		nfds = epoll_wait(m_iEpollFd, events, _MAX_SOCKFD_COUNT, -1);
-		if(nfds > 50)
-		cout<<"clientEventReadHandler "<<nfds<<endl;
-		//pthread_mutex_unlock(&mutex);//release lock
-		//printf("nfds : %d\n",nfds);
-		//pthread_mutex_lock(&mutex);//get lock
-		for(int i = 0; i < nfds; ++i)
-		{
-			client_socket = events[i].data.fd;
-			//cout << "client  " << events[i].data.fd <<" events : "<<events[i].events<< endl;
-			if(events[i].events & EPOLLIN)//监听到读事件
-			{
-				http.recvHttpRequest(client_socket, m_iEpollFd);
-			}
-			//写事件不做处理
-			else if(events[i].events &EPOLLOUT)
-			{
-			
-				http.sendHttpResponse(client_socket, m_iEpollFd);
-			}
-			else
-			{
-				cout << "EPOLL ERROR"<<endl;
-				epoll_ctl(m_iEpollFd, EPOLL_CTL_DEL, client_socket, &events[i]);
-			}
-			
-		}
-		pthread_mutex_unlock(&mutex);//release lock
-		
-		if(nfds == 0)
-		{
-			//printf("===cross===\n");
-		}
-	}
-}
 
-void *PositiveServer::clientEventWriteHandler(void* lpVoid)
-{
-	positiveHttp http;
-	int client_socket = 0;
-	int nfds = 0;
-	while(true)
-	{
-		pthread_mutex_lock(&mutex);//get lock
-		nfds = epoll_wait(m_iEpollFd, events, _MAX_SOCKFD_COUNT, -1);
-		//printf("nfds : %d\n",nfds);
-		if(nfds > 50)
-		cout<<"clientEventWriteHandler "<<nfds<<endl;
-		for(int i = 0; i < nfds; ++i)
-		{
-			client_socket = events[i].data.fd;
-			//cout << "client  " << events[i].data.fd <<" events : "<<events[i].events<< endl;
-			if(events[i].events & EPOLLIN)//监听到读事件不做处理
-			{
-				http.recvHttpRequest(client_socket, m_iEpollFd);
-			}
-			//写事件处理
-			else if(events[i].events &EPOLLOUT)
-			{
-				http.sendHttpResponse(client_socket, m_iEpollFd);
-			}
-			else
-			{
-				cout << "EPOLL ERROR"<<endl;
-				epoll_ctl(m_iEpollFd, EPOLL_CTL_DEL, client_socket, &events[i]);
-			}
-			
-		}
-		pthread_mutex_unlock(&mutex);//release lock
-		
-		
-		if(nfds == 0)
-		{
-			//printf("===cross===\n");
-		}
-	}
-}
 //处理程序
 void PositiveServer::Run()
 {
     //int client_socket;
     printf("run Server\n");
-	pthread_mutex_init(&mutex, NULL);//init mutex
-	#if 0
-	if(-1 == pthread_create(&m_ClientHandlerThreadId, 0, clientEventReadHandler, NULL))
-	{
-		perror("pthread_create");
-		exit(-1);
-	}
-	
-	if(-1 == pthread_create(&m_ClientHandlerThreadId, 0, clientEventWriteHandler, NULL))
-	{
-		perror("pthread_create");
-		exit(-1);
-	}
-	#endif
-	//pthread_exit(NULL);
 	positiveHttp http;
 	int client_socket = 0;
 	int nfds = 0;
@@ -215,16 +114,10 @@ void PositiveServer::Run()
 	http.pool_init(THREAD_NUM);
 	for(;;)
 	{
-		//pthread_mutex_lock(&mutex);
-		//epoll_wait(m_iEpollFd, events, _MAX_SOCKFD_COUNT, -1);
-		//pthread_mutex_unlock(&mutex);//release lock
 		nfds = epoll_wait(m_iEpollFd, events, _MAX_SOCKFD_COUNT, -1);
-		if(nfds > 100)
-		cout<<"events "<<nfds<<endl;
 		for(int i = 0; i < nfds; ++i)
 		{
 			client_socket = events[i].data.fd;
-			//cout << "client  " << events[i].data.fd <<" events : "<<events[i].events<< endl;
 			if(events[i].events & EPOLLIN)//监听到读事件不做处理
 			{
 				http.recvHttpRequest(client_socket, m_iEpollFd);
@@ -239,7 +132,6 @@ void PositiveServer::Run()
 				cout << "EPOLL ERROR"<<endl;
 				epoll_ctl(m_iEpollFd, EPOLL_CTL_DEL, client_socket, &events[i]);
 			}
-			
 		}
 	}
 }
@@ -305,8 +197,6 @@ void PositiveServer::initFiles()
 		free(temp);//删除临时节点
 		temp = NULL;
 	}
-	
-	//printLink(positive_pool);
 	//文件管理线程
 	#if POOL_SORT
 	if(-1 == pthread_create(&m_ClientHandlerThreadId,0,fileHandler,NULL))
@@ -323,6 +213,7 @@ void PositiveServer::initFiles()
 	}
 	#endif
 }
+
 //检查目录下的文件是否有所改动
 void* PositiveServer::fileHandler(void *lpVoid)
 {
@@ -416,12 +307,11 @@ void* PositiveServer::fileHandler(void *lpVoid)
 				}
 			}
 		}
-		//cout<<"end"<<endl;
-		//每两秒检查一次
+		//每10秒检查一次
 		sleep(10);
 	}
 }
-positive_pool_t*  sortLink(positive_pool_t *head)
+positive_pool_t* PositiveServer:: sortLink(positive_pool_t *head)
 {
     positive_pool_t *temp = head;
 	int flag = 0;
@@ -478,7 +368,7 @@ positive_pool_t*  sortLink(positive_pool_t *head)
 		}
     }  
 
-    if (pfirst != NULL)     /*循环结束得到有序链表first                */  
+    if (pfirst != NULL)     /*循环结束得到有序链表first  */  
     {  
         ptail->next = NULL; /*单向链表的最后一个节点的next应该指向NULL */   
     } 
@@ -505,7 +395,7 @@ void setState(positive_pool_t *head, int state)
 	while(head != NULL)
 	{
 		head->fileState = state;
-		if((now - head->accessTime)>20);//超过10分钟没有被访问，那么访问次数减半，相应的在内存池的位置也会靠后
+		if((now - head->accessTime)>10*60);//超过10分钟没有被访问，那么访问次数减半，相应的在内存池的位置也会靠后
 			head->accessCount = head->accessCount/2;
 		head = head->next;
 	}
@@ -518,14 +408,12 @@ void* PositiveServer::poolHandler(void *lpVoid)
 	//排序
 	for(;;)
 	{
-		//printLink(positive_pool->start);
 		setState(positive_pool,1);
 		positive_pool = sortLink(positive_pool);
 		setState(positive_pool,0);
 		positive_pool->start = positive_pool;
-		printLink(positive_pool->start);
-		sleep(10);
-		//positive_pool->next->next->next->accessCount = 1;
+		//printLink(positive_pool->start);
+		sleep(60);
 	}
 }
 int main(int argc, char** argv)
