@@ -1,15 +1,17 @@
 positive release 1.0
 ==
-Note: This branch is currently a work-in-progress, in hopes of writing a high performance 
+####Note: 
+This branch is currently a work-in-progress, in hopes of writing a high performance 
 web server.
-Author: Positive Persist. 1018507406@qq.com
+####Authors
+Author: Positive Persist. 1018507406@qq.com<br/>
 Copy right 2015,Positive Persist.
-Function:
-1.GET,MIME
+####Function
+1.GET,MIME<br/>
 2.High performace just like nginx
-Technology:
-1.Memory pool in mamaging files.
-2.Multiple IO, Epoll
+####Technology
+1.Memory pool in mamaging files.<br/>
+2.Multiple IO, Epoll<br/>
 3.thread pool in sending large file.
 
 
