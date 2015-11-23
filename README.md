@@ -3,7 +3,7 @@ Positive release 1.0
 ####Note: 
 This branch is currently a work-in-progress, in hopes of writing a high performance 
 web server like Nginx.
-####Authors
+####Author
 Author: Positive Persist. 1018507406@qq.com<br/>
 Copy right 2015,Positive Persist.
 ####Function
