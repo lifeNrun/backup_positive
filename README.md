@@ -16,9 +16,9 @@ Copy right 2015,Positive Persist.
 4.Sort files by access count in order to premote the access performance.
 
 ####Performance
-Test by ab2 of Apache in my virtual machine(cpu 1.7G,Memory 2G).</br>
-To Little files, the speed of Positive almost can reach the speed of Nginx.</br>
-in 20000 concurrent connections,the qps can reach 10000(mean).
+1.Test by ab2 of Apache in my virtual machine(cpu 1.7G,Memory 2G).</br>
+2.To Little files, the speed of Positive almost can reach the speed of Nginx.</br>
+3.when testing 20000 concurrent connections,the qps can reach 10000(mean).
 ```
 linux-76r3:/home/yuan # ab2 -c 20000 -n 20000 http://192.168.27.125/index.html
 This is ApacheBench, Version 2.3 <$Revision: 655654 $>
