@@ -17,7 +17,8 @@
 #define HTTP_PORT 80
 #define _MAX_SOCKFD_COUNT 50000
 //超过80M的文件不放在内存池里，只记录一下基本信息
-#define MAX_FILE_SIZE_IN_POOL 1024*1024*60
+#define MAX_FILE_SIZE_IN_POOL 1024*1024*80
+//如果文件大小超过2M就用线程池来处理
 #define MAX_FILE_SIZE_NEED_THREAD 1024*1024*2
 #define MAX_FILE_SIZE 1024*1024*600
 #define HTTP_BUFFER_SIZE 1024*1024
@@ -79,6 +80,8 @@ class PositiveServer
 		static int   m_iEpollFd;
 		int	  m_iSock;
 		pthread_t m_ListenThreadId;//监听线程句柄
+		pthread_t m_FileHandlerThreadId;//文件管理线程句柄
+		pthread_t m_PoolHandlerThreadId;//内存池管理线程句柄
 		epoll_event events[_MAX_SOCKFD_COUNT];
 };
 

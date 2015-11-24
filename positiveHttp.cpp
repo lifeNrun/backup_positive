@@ -257,9 +257,7 @@ int positiveHttp::parseHttpRequest(const string &request, positive_http_header_t
 		sstream >> (parseInfo->url);
 		sstream >> (parseInfo->version);
 	}
-	//¥¶¿Ìmethod
 	stringOp::transformToUpper(parseInfo->method);
-	//’“µΩ
 	next = request.find(marker2, prev);
 	if(next != string::npos)
 	{

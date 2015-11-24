@@ -102,8 +102,6 @@ void *PositiveServer::ListenThread(void* lpVoid)
 //处理程序
 void PositiveServer::Run()
 {
-    //int client_socket;
-    //printf("run Server\n");
 	positiveHttp http;
 	int client_socket = 0;
 	int nfds = 0;
@@ -115,11 +113,11 @@ void PositiveServer::Run()
 		for(int i = 0; i < nfds; ++i)
 		{
 			client_socket = events[i].data.fd;
-			if(events[i].events & EPOLLIN)//监听到读事件不做处理
+			if(events[i].events & EPOLLIN)//对读事件进行处理
 			{
 				http.recvHttpRequest(client_socket, m_iEpollFd);
 			}
-			//写事件处理
+			//对写事件进行处理
 			else if(events[i].events &EPOLLOUT)
 			{
 				http.sendHttpResponse(client_socket, m_iEpollFd);
@@ -167,7 +165,7 @@ void PositiveServer::initFiles()
 		{
 			strcpy(temp->name,entry->d_name);
 			//cout<<temp->name<<endl;
-			//对超过可以放入内存池中的最大的文件大小，不做处理
+			//对超过允许放入内存池中的最大的文件大小的文件，将不被读入内存池
 			if(statbuf.st_size <= MAX_FILE_SIZE_IN_POOL)
 			{
 				fp = fopen(temp->name,"r");
@@ -199,14 +197,14 @@ void PositiveServer::initFiles()
 	}
 	//文件管理线程
 	#if POOL_SORT
-	if(-1 == pthread_create(&m_ClientHandlerThreadId,0,fileHandler,NULL))
+	if(-1 == pthread_create(&m_FileHandlerThreadId,0,fileHandler,NULL))
 	{
 		perror("pthread_create");
 		exit(-1);
 	}
 	
 	//内存池管理
-	if(-1 == pthread_create(&m_ClientHandlerThreadId,0,poolHandler,NULL))
+	if(-1 == pthread_create(&m_PoolHandlerThreadId,0,poolHandler,NULL))
 	{
 		perror("pthread_create");
 		exit(-1);
