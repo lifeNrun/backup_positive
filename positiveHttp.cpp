@@ -2,6 +2,7 @@
 #define PERFORMANCE_DEBUG 0
 #define HIGH_PERFORMANCE 0
 #define THREAD_POOL 1 //开启线程池
+//一些错误处理时应该发送的html
 const char  positiveHttp::badRequest[]="<html><head><title>400 Bad Request</title></head><body bgcolor=\"white\"> \
 		<center><h1>400 Bad Request</h1></center><hr><center>POSITIVE/1.0.0</center></body></html>";
 const char  positiveHttp::notFound[]="<html><head><title>404 Not Found</title></head><body bgcolor=\"white\"> \
@@ -10,6 +11,7 @@ const char  positiveHttp::notFoundHead[]="HTTP/1.1 302 not Found\r\nServer: Posi
 \r\nContent-Type: text/html; charset=utf-8\r\n\r\n";
 
 thread_pool * positiveHttp::pos_thread_pool = NULL;
+//任务调度
 void* positiveHttp::thread_routine(void *arg)
 {
 	while(1)
@@ -41,6 +43,7 @@ void* positiveHttp::thread_routine(void *arg)
 	}
 	pthread_exit(NULL);
 }
+//线程池初始化
 void positiveHttp::pool_init(int max_thread_num)
 {
 	pos_thread_pool = (thread_pool*)malloc(sizeof(thread_pool));
@@ -57,7 +60,7 @@ void positiveHttp::pool_init(int max_thread_num)
 		pthread_create(pos_thread_pool->threadid,NULL,thread_routine,NULL);
 	}
 }
-
+//添加任务，并唤醒线程
 int positiveHttp::pool_add_worker(void*(*positive_process)(void*arg1,void*arg2), void*arg1,void *arg2)
 {
 	worker_thread *worker = (worker_thread*)malloc(sizeof(worker_thread));
@@ -82,6 +85,7 @@ int positiveHttp::pool_add_worker(void*(*positive_process)(void*arg1,void*arg2),
 	pthread_cond_signal(&(pos_thread_pool->queue_ready));
 	return 0;
 }
+//处理函数
 void* positiveHttp::positive_process (void *arg1, void*arg2){
 	positive_pool_t *memPool = (positive_pool_t*)arg1;
 	long  client_socket = (long)arg2;
@@ -91,32 +95,58 @@ void* positiveHttp::positive_process (void *arg1, void*arg2){
 	int sendsize = 0;
 
 	while(1){
-		if(sendsize == -1)
+		//文件太大不发送
+		if(memPool->length >= MAX_FILE_SIZE)
+			break;
+		//文件比较大，就直接从文件中读取，利用sendfile函数传输数据
+		if(memPool->length >= MAX_FILE_SIZE_IN_POOL)
 		{
-			cout<<"client "<<client_socket<<" -1"<<endl;
-			perror("send");
-		}
-		if(sendsize != -1)
-		{
-			i = i + sendsize;
-			left = left - sendsize;
-			if(left <= 0)
+			int fd;
+			off_t offset = 0;
+			fd = open(memPool->name, O_RDONLY);
+			if(fd == -1)
+			{
+				fprintf(stderr, "error from open: %s\n", strerror(errno));
 				break;
-			if(left < HTTP_BUFFER_SIZE)
-				length = left;
+			}
+			//cout<<"sendfile..."<<endl;
+			sendsize = (int)sendfile(client_socket, fd, &offset, memPool->length);
+			//cout<<"sendsize = "<<sendsize<<endl;
+			if(sendsize == -1) {
+				fprintf(stderr, "error from sendfile: %s\n", strerror(errno));
+				//exit(1);
+			}
+			close(fd);
+			break;
 		}
-		sendsize = send(client_socket, memPool->buffer+i, length,0);
+		else{
+			if(sendsize == -1)
+			{
+				cout<<"client "<<client_socket<<" -1"<<endl;
+				perror("send");
+				fprintf(stderr, "error from send: %s\n", strerror(errno));
+			}
+			if(sendsize != -1)
+			{
+				i = i + sendsize;
+				left = left - sendsize;
+				if(left <= 0)
+					break;
+				if(left < HTTP_BUFFER_SIZE)
+					length = left;
+			}
+			sendsize = send(client_socket, memPool->buffer+i, length,0);
+		}
 	}
 	close(client_socket);
 	return NULL;
 }
-
+//检查请求
 bool positiveHttp::checkRequest(int client_socket,positive_http_header_t parseInfo)
 {
 	//检查method
 	if(httpMethod.find(parseInfo.method) == -1)
 	{
-		//printf("Bad request\n");
 		http_response[client_socket] = RES_BAD_METHOD;
 		return false;
 	}
@@ -155,7 +185,7 @@ void positiveHttp::recvHttpRequest(int client_socket, int EpollFd)
 {
 	 #if HIGH_PERFORMANCE
 	 //高性能处理
-	 char buffer[HTTP_HEAD_SIZE];
+	 //char buffer[HTTP_HEAD_SIZE];
 	 string httpRequest;
 	 positive_http_header_t parseInfo;
 	 memset(buffer, 0, sizeof(buffer));
@@ -166,7 +196,7 @@ void positiveHttp::recvHttpRequest(int client_socket, int EpollFd)
 	 ev.data.fd = client_socket;//记录句柄
 	 epoll_ctl(EpollFd, EPOLL_CTL_MOD, client_socket,&ev);
 	#else
-	 char buffer[HTTP_HEAD_SIZE];
+	 //char buffer[HTTP_HEAD_SIZE];
 	 string httpRequest;
 	 positive_http_header_t parseInfo;
 	 memset(buffer, 0, sizeof(buffer));
@@ -182,18 +212,13 @@ void positiveHttp::recvHttpRequest(int client_socket, int EpollFd)
      else//接收客户端发送过来的消息
      {
 		 httpRequest.append(buffer);
-		 if(parseHttpRequest(httpRequest, &parseInfo) == 0){
-			//printRequest(parseInfo);
-		 }
-		 else{
-			 printf("parseError\n");
-		 }
+		 parseHttpRequest(httpRequest, &parseInfo);
 		 //检查解析信息
 		 checkRequest(client_socket ,parseInfo);
          epoll_event ev;
          //对应文件描述符的监听事件修改为写
          ev.events = POSITIVE_EPOLLOUT;
-         ev.data.fd = client_socket;//记录句柄
+         ev.data.fd = client_socket;
          epoll_ctl(EpollFd, EPOLL_CTL_MOD, client_socket,&ev);
      }
 	 #endif 
@@ -215,12 +240,10 @@ int positiveHttp::parseHttpRequest(const string &request, positive_http_header_t
 	
 	if(request.empty())
 	{
-		//printf("http request is empty\n");
 		return -1;
 	}
 	if(NULL == parseInfo)
 	{
-		//printf("parseInfo is NULL\n");
 		return -1;
 	}
 	int prev = 0, next = 0;
@@ -245,6 +268,7 @@ int positiveHttp::parseHttpRequest(const string &request, positive_http_header_t
 
 	return 0;
 }
+//发送错误
 void positiveHttp::sendError(int client_socket)
 {
 	
@@ -262,6 +286,7 @@ void positiveHttp::sendError(int client_socket)
 	#endif 
 	
 }
+//发送头
 int positiveHttp::sendHttpHead(int client_socket,int length)
 {
 	string head("HTTP/1.1");
@@ -287,7 +312,7 @@ int positiveHttp::sendHttpHead(int client_socket,int length)
 		}
 		head.append(" 200 OK\r\n");
 	}
-	head.append("Server: Positive 1.0\r\n");
+	head.append(serverName);
 	head.append("Connection: Close\r\n");
 	
 	if(supportFiles.find(contentType) != supportFiles.end())
@@ -298,14 +323,15 @@ int positiveHttp::sendHttpHead(int client_socket,int length)
 		head.append(supportFiles["html"]);
 	}
 	length = head.length();
-	char buffer[length];
-	bzero(buffer,length);
+	//char buffer[length];
+	memset(buffer,0,sizeof(buffer));
 	head.copy(buffer,length,0);
 	//buffer[length] = '\0';
 	//发送头
 	send(client_socket, buffer, length ,0);
 	return 0;
 }
+//发送http响应报文
 void positiveHttp::sendHttpResponse(int client_socket, int EpollFd)
 {
 	int sendsize = 0;
@@ -356,7 +382,7 @@ void positiveHttp::sendHttpResponse(int client_socket, int EpollFd)
 		
 		//如果文件超过最大值，就用从线程池唤醒一个线程来发送数据
 	#if THREAD_POOL
-		if(pool->length >= MAX_FILE_SIZE)
+		if(pool->length >= MAX_FILE_SIZE_NEED_THREAD)
 		{
 			pool_add_worker(positive_process,pool,(void*)client_socket);
 		}

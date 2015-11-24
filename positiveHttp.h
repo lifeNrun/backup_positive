@@ -4,7 +4,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <map>
+#include <errno.h>
 #include <assert.h>
+#include <sys/sendfile.h>
 #include "positive.h"
 using namespace std;
 //保存从http request解析下来的值
@@ -52,6 +54,7 @@ class positiveHttp
 			supportFiles["gif"] = "Content-Type: image/gif\r\n\r\n";
 			supportFiles["txt"] = "Content-Type: text/plain\r\n\r\n";
 			supportFiles["html"] = "Content-Type: text/html; charset=utf-8\r\n\r\n";
+			serverName = "Server: Positive 1.0\r\n";
 		};
 		int sendHttpHead(int client_socket,int length);
 		void sendError(int client_socket);
@@ -68,6 +71,8 @@ class positiveHttp
 		static void* positive_process (void *arg1, void*arg2);
 		int pool_add_worker(void*(*process)(void*arg1,void*arg2), void*arg1,void *arg2);
 	private:
+		char buffer[HTTP_HEAD_SIZE];//用于接受或者发送数据的缓存数组
+		string serverName;
 		static thread_pool *pos_thread_pool;
 		static const char badRequest[];
 		static const char notFound[];
@@ -75,7 +80,7 @@ class positiveHttp
 		string configPath;//配置文件路径
 		string docPath;//服务器文件路径
 		string domainName;//域名
-		map<string,string> supportFiles;
+		map<string,string> supportFiles;//支持的文件类型
 		string httpMethod;
 		int http_response[_MAX_SOCKFD_COUNT];
 		string requestUrl[_MAX_SOCKFD_COUNT];

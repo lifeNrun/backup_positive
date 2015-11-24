@@ -15,11 +15,11 @@
 #include <sys/types.h>
 #include <dirent.h>
 #define HTTP_PORT 80
-#define MAXNUM 6
-#define _MAX_SOCKFD_COUNT 100000
-#define BUFFER_SIZE 512
+#define _MAX_SOCKFD_COUNT 50000
 //超过80M的文件不放在内存池里，只记录一下基本信息
-#define MAX_FILE_SIZE 1024*1024*2
+#define MAX_FILE_SIZE_IN_POOL 1024*1024*60
+#define MAX_FILE_SIZE_NEED_THREAD 1024*1024*2
+#define MAX_FILE_SIZE 1024*1024*600
 #define HTTP_BUFFER_SIZE 1024*1024
 #define HTTP_HEAD_SIZE 1024
 #define ERROR_BUFFER_SIZE 
@@ -63,25 +63,22 @@ struct positive_pool_s
 class PositiveServer
 {
 	public:
-		static positive_pool_t *positive_pool;
+		static positive_pool_t *positive_pool;//内存池
 		PositiveServer();
 		~PositiveServer();
-		static void *clientEventReadHandler(void * lpVoid);
-		static void *clientEventWriteHandler(void * lpVoid);
+		void initDaemon();//初始化守护进程
 		bool InitServer(int iPort);
 		static void *ListenThread(void * lpVoid);
+		void Run();
 		//内存池操作
-		void getPool();
-		static void *fileHandler(void *lpVoid);
+		static void *fileHandler(void *lpVoid); //文件处理
 		static void * poolHandler(void *lpVoid);//对整个内存池进行处理
 		void initFiles();
-		void Run();
 		static positive_pool_t*  sortLink(positive_pool_t *head);
 	private:
 		static int   m_iEpollFd;
 		int	  m_iSock;
 		pthread_t m_ListenThreadId;//监听线程句柄
-		pthread_t m_ClientHandlerThreadId;//监听线程句柄
 		epoll_event events[_MAX_SOCKFD_COUNT];
 };
 

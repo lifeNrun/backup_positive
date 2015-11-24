@@ -58,15 +58,12 @@ bool PositiveServer::InitServer(int iPort)
         exit(-1);
     }
 
-    if(-1 == listen(m_iSock, MAXNUM))
+    if(-1 == listen(m_iSock, _MAX_SOCKFD_COUNT))
     {
         perror("listen");
         exit(-1);
     }
-    else
-    {
-        printf("服务端监听中...\n");
-    }
+
 
     //监听线程，此线程负责接收客户端连接，加入到epoll中
     if(-1 == pthread_create(&m_ListenThreadId, 0, ListenThread, this))
@@ -106,7 +103,7 @@ void *PositiveServer::ListenThread(void* lpVoid)
 void PositiveServer::Run()
 {
     //int client_socket;
-    printf("run Server\n");
+    //printf("run Server\n");
 	positiveHttp http;
 	int client_socket = 0;
 	int nfds = 0;
@@ -147,7 +144,6 @@ void PositiveServer::initFiles()
 		exit(-1);
 	}
 	chdir("html"); 
-	cout<<"open dir html success"<<endl;
 	FILE *fp;
 	positive_pool_t* temp;
 	time_t now;
@@ -170,18 +166,22 @@ void PositiveServer::initFiles()
 		if(S_ISREG(statbuf.st_mode))
 		{
 			strcpy(temp->name,entry->d_name);
-			cout<<temp->name<<endl;
-			fp = fopen(temp->name,"r");
-			if(NULL == fp)
+			//cout<<temp->name<<endl;
+			//对超过可以放入内存池中的最大的文件大小，不做处理
+			if(statbuf.st_size <= MAX_FILE_SIZE_IN_POOL)
 			{
-				perror("fopen");
+				fp = fopen(temp->name,"r");
+				if(NULL == fp)
+				{
+					perror("fopen");
+				}
+				temp->buffer = (char*)malloc(statbuf.st_size*sizeof(char));
+				fread(temp->buffer,sizeof(char),statbuf.st_size,fp);
+				fclose(fp);
 			}
 			temp->startTime  = now;
 			temp->accessTime = now;
 			temp->length = statbuf.st_size;
-			temp->buffer = (char*)malloc(statbuf.st_size*sizeof(char));
-			fread(temp->buffer,sizeof(char),statbuf.st_size,fp);
-			fclose(fp);
 			temp->next = (positive_pool_t*)malloc(sizeof(positive_pool_t));
 			if(temp->next == NULL)
 			{
@@ -249,23 +249,25 @@ void* PositiveServer::fileHandler(void *lpVoid)
 					{
 						if(statbuf.st_size != temp->length)//文件已经修改，需要重新导入内存
 						{
-							cout<<entry->d_name<<endl;
+							//cout<<entry->d_name<<endl;
 							flag = 2;
-							fp = fopen(temp->name,"r");
-							if(NULL == fp)
+							if(statbuf.st_size <= MAX_FILE_SIZE_IN_POOL)
 							{
-								perror("fopen");
-								break;
+								fp = fopen(temp->name,"r");
+								if(NULL == fp)
+								{
+									perror("fopen");
+									break;
+								}
+								temp->length = statbuf.st_size;
+								//cout<<"free temp buffer"<<endl;
+								free(temp->buffer);
+								temp->buffer = NULL;
+								temp->buffer = (char*)malloc(statbuf.st_size*sizeof(char));
+								memset(temp->buffer,0,statbuf.st_size*sizeof(char));
+								fread(temp->buffer,sizeof(char),statbuf.st_size,fp);
+								fclose(fp);
 							}
-							temp->length = statbuf.st_size;
-							//temp->buffer
-							cout<<"free temp buffer"<<endl;
-							free(temp->buffer);
-							temp->buffer = NULL;
-							temp->buffer = (char*)malloc(statbuf.st_size*sizeof(char));
-							memset(temp->buffer,0,statbuf.st_size*sizeof(char));
-							fread(temp->buffer,sizeof(char),statbuf.st_size,fp);
-							fclose(fp);
 							//cout<<temp->buffer<<endl;
 							break;
 						}
@@ -279,7 +281,7 @@ void* PositiveServer::fileHandler(void *lpVoid)
 				}
 				if(0 == flag)//添加新的文件进入内存池
 				{
-					cout<<"add new"<<endl;
+					//cout<<"add new"<<endl;
 					temp = positive_pool->end;
 					temp->next = (positive_pool_t*)malloc(sizeof(positive_pool_t));
 					temp = temp->next;
@@ -289,19 +291,23 @@ void* PositiveServer::fileHandler(void *lpVoid)
 						exit(-1);
 					}
 					strcpy(temp->name,entry->d_name);
-					cout<<temp->name<<endl;
-					fp = fopen(temp->name,"r");
-					if(NULL == fp)
+					//cout<<temp->name<<endl;
+					//不能超过最大的SIZE
+					if(statbuf.st_size <= MAX_FILE_SIZE_IN_POOL)
 					{
-						perror("fopen");
+						fp = fopen(temp->name,"r");
+						if(NULL == fp)
+						{
+							perror("fopen");
+						}
+						temp->buffer = (char*)malloc(statbuf.st_size*sizeof(char));
+						fread(temp->buffer,sizeof(char),statbuf.st_size,fp);
+						fclose(fp);
 					}
 					temp->length = statbuf.st_size;
 					temp->accessCount = 0;
 					temp->startTime  = time(NULL);
 					temp->accessTime = temp->startTime;
-					temp->buffer = (char*)malloc(statbuf.st_size*sizeof(char));
-					fread(temp->buffer,sizeof(char),statbuf.st_size,fp);
-					fclose(fp);
 					positive_pool->end = temp;//调整end节点
 					temp->next = NULL;
 				}
@@ -372,7 +378,7 @@ positive_pool_t* PositiveServer:: sortLink(positive_pool_t *head)
     {  
         ptail->next = NULL; /*单向链表的最后一个节点的next应该指向NULL */   
     } 
-	else{
+	else{//如果pfirst = NULL说明不需要排序
 		return head;
 	}
 	return 	pfirst;
@@ -402,9 +408,6 @@ void setState(positive_pool_t *head, int state)
 }
 void* PositiveServer::poolHandler(void *lpVoid)
 {
-	int accessCount = 0;
-	int flag = 0;
-	
 	//排序
 	for(;;)
 	{
@@ -416,11 +419,26 @@ void* PositiveServer::poolHandler(void *lpVoid)
 		sleep(60);
 	}
 }
+//成为守护进程
+void PositiveServer::initDaemon()
+{
+	int pid;
+	pid = fork();
+	if(pid < 0)
+		exit(1);
+	else if(pid > 0)
+		exit(0);
+	setsid();
+	cout<<"Positive is running..."<<endl;
+}
 int main(int argc, char** argv)
 {
+	
     PositiveServer server;
+	server.initDaemon();
 	server.initFiles();
     server.InitServer(HTTP_PORT);
     server.Run();
+	
     return 0;
 }
