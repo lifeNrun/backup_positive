@@ -11,7 +11,7 @@ Copy right 2015,Positive Persist.
 2.High performace almost like nginx
 ####Language and develop tools
 C/C++,suse linux server 11.<br/>
-Compiling by gcc.
+Compiling by g++.
 ####Technology
 1.Memory pool in managing files.<br/>
 2.Multiple IO, Epoll<br/>
