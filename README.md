@@ -1,7 +1,7 @@
 Positive release 1.0
 ==
 ####Note: 
-This application is a simple version http server.Laterly, it will come with high versions with more abilities and higer performance.
+This application is a simple version web server.Laterly, it will comes with high versions with more abilities and higer performance.
 
 ####Author
 Author: Positive Persist. 1018507406@qq.com<br>
