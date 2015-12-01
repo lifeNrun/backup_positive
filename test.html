@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Positive by lifeNrun</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-dark.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Positive</h1>
+        <p>Positive web server</p>
+        <p class="view"><a href="https://github.com/lifeNrun/positive">View the Project on GitHub <small>lifeNrun/positive</small></a></p>
+        <ul>
+          <li><a href="https://github.com/lifeNrun/positive/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/lifeNrun/positive/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/lifeNrun/positive">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a id="positive-release-10" class="anchor" href="#positive-release-10" aria-hidden="true"><span class="octicon octicon-link"></span></a>Positive release 1.0</h1>
+
+<h4>
+<a id="note" class="anchor" href="#note" aria-hidden="true"><span class="octicon octicon-link"></span></a>Note:</h4>
+
+<p>This application is a simple version web server.Laterly, it will comes with high versions with more abilities and higer performance.</p>
+
+<h4>
+<a id="author" class="anchor" href="#author" aria-hidden="true"><span class="octicon octicon-link"></span></a>Author</h4>
+
+<p>Author: Positive Persist. <a href="mailto:1018507406@qq.com">1018507406@qq.com</a><br>
+Copy right 2015,Positive Persist.<br></p>
+
+<h4>
+<a id="function" class="anchor" href="#function" aria-hidden="true"><span class="octicon octicon-link"></span></a>Function</h4>
+
+<ol>
+<li>GET,MIME<br>
+</li>
+<li>High performace almost like nginx<br>
+</li>
+</ol>
+
+<h4>
+<a id="language-and-develop-tools" class="anchor" href="#language-and-develop-tools" aria-hidden="true"><span class="octicon octicon-link"></span></a>Language and develop tools</h4>
+
+<ol>
+<li>C/C++,suse linux server 11.<br>
+</li>
+<li>Compiling by g++.<br>
+</li>
+</ol>
+
+<h4>
+<a id="technology" class="anchor" href="#technology" aria-hidden="true"><span class="octicon octicon-link"></span></a>Technology</h4>
+
+<ol>
+<li>Memory pool in managing files.<br>
+</li>
+<li>Multiple IO, Epoll<br>
+</li>
+<li>Thread pool in sending large file.<br>
+</li>
+<li>Sort files by access count in order to premote the access performance.</li>
+</ol>
+
+<h4>
+<a id="performance" class="anchor" href="#performance" aria-hidden="true"><span class="octicon octicon-link"></span></a>Performance</h4>
+
+<ol>
+<li>Test by ab2 of Apache in my virtual machine(cpu 1.7G,Memory 2G). <br>
+</li>
+<li>To Little files, the speed of Positive almost can reach the speed of Nginx. <br>
+</li>
+<li>When testing 20000 concurrent connections,the qps can reach 10000(mean)</li>
+</ol>
+
+<pre><code>linux-76r3:/home/yuan # ab2 -c 20000 -n 20000 http://192.168.27.125/index.html
+This is ApacheBench, Version 2.3 &lt;$Revision: 655654 $&gt;
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 192.168.27.125 (be patient)
+Completed 2000 requests
+Completed 4000 requests
+Completed 6000 requests
+Completed 8000 requests
+Completed 10000 requests
+Completed 12000 requests
+Completed 14000 requests
+Completed 16000 requests
+Completed 18000 requests
+Completed 20000 requests
+Finished 20000 requests
+
+
+Server Software:        Positive
+Server Hostname:        192.168.27.125
+Server Port:            80
+
+Document Path:          /index.html
+Document Length:        461 bytes
+
+Concurrency Level:      20000
+Time taken for tests:   1.891 seconds
+Complete requests:      20000
+Failed requests:        0
+Write errors:           0
+Total transferred:      11140000 bytes
+HTML transferred:       9220000 bytes
+Requests per second:    10578.38 [#/sec] (mean)
+Time per request:       1890.649 [ms] (mean)
+Time per request:       0.095 [ms] (mean, across all concurrent requests)
+Transfer rate:          5754.06 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:      465  560  52.1    567     697
+Processing:   499  598  66.6    579     734
+Waiting:      356  550 107.1    556     734
+Total:       1117 1157  20.3   1152    1215
+
+Percentage of the requests served within a certain time (ms)
+  50%   1152
+  66%   1160
+  75%   1172
+  80%   1178
+  90%   1192
+  95%   1198
+  98%   1202
+  99%   1206
+ 100%   1215 (longest request)
+</code></pre>
+      </section>
+    </div>
+    <footer>
+      <p>Project maintained by <a href="https://github.com/lifeNrun">lifeNrun</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
