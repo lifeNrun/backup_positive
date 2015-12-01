@@ -1,27 +1,31 @@
 Positive release 1.0
 ==
 ####Note: 
-This branch is currently a work-in-progress, in hopes of writing a high performance 
-web server like Nginx.
+This application is a simple version http server.Laterly, it will comes with high versions with more abilities and higer performance.
+
 ####Author
-Author: Positive Persist. 1018507406@qq.com<br/>
-Copy right 2015,Positive Persist.
+Author: Positive Persist. 1018507406@qq.com<br>
+Copy right 2015,Positive Persist.<br>
+
 ####Function
-1.GET,MIME<br/>
-2.High performace almost like nginx
-####Language and develop tools
-C/C++,suse linux server 11.<br/>
-Compiling by g++.
-####Technology
-1.Memory pool in managing files.<br/>
-2.Multiple IO, Epoll<br/>
-3.Thread pool in sending large file.<br/>
-4.Sort files by access count in order to premote the access performance.
+1. GET,MIME<br/>
+2. High performace almost like nginx<br>
+
+#### Language and develop tools
+1. C/C++,suse linux server 11.<br/>
+2. Compiling by g++.<br>
+
+#### Technology
+1. Memory pool in managing files.<br/>
+2. Multiple IO, Epoll<br/>
+3. Thread pool in sending large file.<br/>
+4. Sort files by access count in order to premote the access performance.
 
 ####Performance
-1.Test by ab2 of Apache in my virtual machine(cpu 1.7G,Memory 2G).</br>
-2.To Little files, the speed of Positive almost can reach the speed of Nginx.</br>
-3.When testing 20000 concurrent connections,the qps can reach 10000(mean).
+1. Test by ab2 of Apache in my virtual machine(cpu 1.7G,Memory 2G). <br>
+2. To Little files, the speed of Positive almost can reach the speed of Nginx. <br>
+3. When testing 20000 concurrent connections,the qps can reach 10000(mean)
+
 ```
 linux-76r3:/home/yuan # ab2 -c 20000 -n 20000 http://192.168.27.125/index.html
 This is ApacheBench, Version 2.3 <$Revision: 655654 $>
