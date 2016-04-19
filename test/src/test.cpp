@@ -12,6 +12,11 @@
 #include <map>
 #include <pthread.h>
 #include <assert.h>
+#include <dirent.h>
+#include <sys/stat.h>        // 提供属性操作函数  
+#include <sys/types.h>         // 提供mode_t 类型  
+#include<vector>
+#include<unistd.h>
 using namespace std;
 
 #define HTTP_BUFFER_SIZE 1024*800
@@ -294,8 +299,37 @@ void testThreadPool()
 	sleep(5);
 	exit(0);
 }
+void scan_dir(string basePath, vector<string>files,bool searchSubDir)   // 定义目录扫描函数  
+{  
+   DIR *dir;
+   struct dirent *ptr;
+   if((dir = opendir(basePath.c_str())) == NULL)
+	   return;
+   //获取文件列表
+   while((ptr = readdir(dir)) != NULL){
+	   if(strcmp(ptr->d_name,".") == 0||strcmp(ptr->d_name,"..") == 0){
+		   continue;
+	   }
+	   string curFilePath;
+	   curFilePath = basePath + "/" + ptr->d_name;
+	   if(ptr->d_type == 4 && searchSubDir){
+		   scan_dir(curFilePath,files,searchSubDir);
+	   }
+	   cout<<curFilePath<<endl;
+   }
+   closedir(dir);
+}  
+
+void testGetDir()
+{
+	vector<string>files;
+    scan_dir("intermediate",files,true);
+    exit(0);
+}
 int main()
 {
+   testGetDir();
+
 	//testMap();
    //testfOpen();
    //testStringFind();

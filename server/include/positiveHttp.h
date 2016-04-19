@@ -53,7 +53,9 @@ class positiveHttp
 			supportFiles["jpeg"] = "Content-Type: image/jpeg\r\n\r\n";
 			supportFiles["gif"] = "Content-Type: image/gif\r\n\r\n";
 			supportFiles["txt"] = "Content-Type: text/plain\r\n\r\n";
-			supportFiles["css"] = "Content-Type: css/plain\r\n\r\n";
+			supportFiles["js"] = "Content-Type: application/x-javascript\r\n\r\n";
+			supportFiles["css"] = "Content-Type: text/css\r\n\r\n";
+			supportFiles["htm"] = "Content-Type: text/html; charset=utf-8\r\n\r\n";
 			supportFiles["html"] = "Content-Type: text/html; charset=utf-8\r\n\r\n";
 			serverName = "Server: Positive 1.0\r\n";
 		};

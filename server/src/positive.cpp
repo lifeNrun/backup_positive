@@ -5,7 +5,7 @@
 *3. 对于fastcgi的支持
 *4. 从配置文件获取到对应的配置
 */
-#define  POOL_SORT 1
+#define  POOL_SORT 0
 #define  THREAD_EPOLL 1
 using namespace std;
 pthread_mutex_t mutex;
@@ -19,6 +19,7 @@ PositiveServer::~PositiveServer()
     close(m_iSock);
 }
 int PositiveServer::m_iEpollFd;
+string PositiveServer:: m_web_root;
 positive_pool_t * PositiveServer::positive_pool;
 
 bool PositiveServer::InitServer()
@@ -136,18 +137,88 @@ void PositiveServer::Run()
 		}
 	}
 }
+#if 0
+void getfiles(const &string path){
+	if( path.size() == 0 ){     // 列出根目录
+
+            vector<string> roots;
+            Poco::Path::listRoots(roots);
+
+            vector<string>::iterator it;
+            WGTP::ResLsDir::ListItem* item;
+            for( it = roots.begin(); it != roots.end(); it++ ){
+                if( BDUtils::isDriveValid(*it) ){
+                    //poco_check_ptr(item = msg.add_list_item());
+                    item->set_type(WGTP::FILE_TYPE_DIR);
+                    item->set_path(*it);
+                }
+            }
+
+        }else{                      // 列出目录下的文件和子目录
+
+            // 判断是否目录
+            Poco::File file(path);
+            if( ! file.isDirectory() ){
+                msg.set_result(WGTP::RESRESULT_FALSE);
+                msg.set_description(STRING_FALSE);
+                return;
+            }
+         
+            Poco::DirectoryIterator it(path);
+            Poco::DirectoryIterator end;
+            WGTP::ResLsDir::ListItem* item;
+
+            for(; it != end; it++ ){
+                try{
+                    WGTP::FileType type = WGTP::FILE_TYPE_FILE;
+                    if( it->isDirectory() ){
+                        type = WGTP::FILE_TYPE_DIR;
+                    }
+                    poco_check_ptr(item = msg.add_list_item());
+                    item->set_type(type);
+                    item->set_path(it->path());
+                }
+                catch(Poco::Exception& exc){
+                    wgm_notice(format("List Directory Item '%s' Catch %s: %s", it->path(), std::string(exc.className()), exc.message()));
+                }
+                catch(std::exception& exc){
+                    wgm_notice(format("List Directory Item '%s' Catch Exception %s", it->path(), exc.what()));
+                }
+            }
+        }
+}
+#endif
+void PositiveServer:: scan_dir(string basePath, vector<string>&files,bool searchSubDir)   // 定义目录扫描函数  
+{  
+   DIR *dir;
+   struct dirent *ptr;
+   if((dir = opendir(basePath.c_str())) == NULL)
+	   return;
+   //获取文件列表
+   while((ptr = readdir(dir)) != NULL){
+	   if(strcmp(ptr->d_name,".") == 0||strcmp(ptr->d_name,"..") == 0){
+		   continue;
+	   }
+	   string curFilePath;
+	   curFilePath = basePath + "/" + ptr->d_name;
+	   if(ptr->d_type == 4 && searchSubDir){
+		   scan_dir(curFilePath,files,searchSubDir);
+	   }
+	   if(ptr->d_type == 8){
+	      files.push_back(curFilePath);
+	      //cout<<curFilePath<<endl;
+	   }
+   }
+   closedir(dir);
+}  
 //把files加入到内存池
 void PositiveServer::initFiles()
 {
 	DIR *dp;
 	struct dirent *entry;
 	struct stat statbuf;
-	if((dp = opendir("www")) == NULL)
-	{
-		perror("opendir www");
-		exit(-1);
-	}
-	chdir("www"); 
+	//扫描目录，并把文件加入进去
+	scan_dir(m_web_root,m_webfiles,true);
 	FILE *fp;
 	positive_pool_t* temp;
 	time_t now;
@@ -164,37 +235,36 @@ void PositiveServer::initFiles()
 		exit(-1);
 	}
 	temp =  positive_pool;
-	while((entry = readdir(dp)) != NULL)
-	{
-		lstat(entry->d_name,&statbuf);
-		if(S_ISREG(statbuf.st_mode))
+	unsigned long filesize = 0;
+	for(int i = 0; i < m_webfiles.size(); ++i){
+		strcpy(temp->name,m_webfiles.at(i).c_str());
+		
+		if(lstat(temp->name, &statbuf) < 0){  
+           filesize = 0;  
+        }else{  
+           filesize = statbuf.st_size;  
+        }  
+		printf("file name : %s\n",temp->name);
+		cout<<"file size: "<<filesize<<endl;
+		fp = fopen(temp->name,"r");
+		if(NULL == fp)
 		{
-			strcpy(temp->name,entry->d_name);
-			//cout<<temp->name<<endl;
-			//对超过允许放入内存池中的最大的文件大小的文件，将不被读入内存池
-			if(statbuf.st_size <= MAX_FILE_SIZE_IN_POOL)
-			{
-				fp = fopen(temp->name,"r");
-				if(NULL == fp)
-				{
-					perror("fopen");
-				}
-				temp->buffer = (char*)malloc(statbuf.st_size*sizeof(char));
-				fread(temp->buffer,sizeof(char),statbuf.st_size,fp);
-				fclose(fp);
-			}
-			temp->startTime  = now;
-			temp->accessTime = now;
-			temp->length = statbuf.st_size;
-			temp->next = (positive_pool_t*)malloc(sizeof(positive_pool_t));
-			if(temp->next == NULL)
-			{
-				perror("malloc temp");
-				exit(-1);
-			}
-			positive_pool->end = temp;
-			temp = temp->next;
+			perror("fopen");
 		}
+		temp->buffer = (char*)malloc(filesize*sizeof(char));
+		fread(temp->buffer,sizeof(char),filesize,fp);
+		fclose(fp);
+		temp->startTime  = now;
+		temp->accessTime = now;
+		temp->length = filesize;
+		temp->next = (positive_pool_t*)malloc(sizeof(positive_pool_t));
+		if(temp->next == NULL)
+		{
+			perror("malloc temp");
+			exit(-1);
+		}
+		positive_pool->end = temp;
+		temp = temp->next;
 	}
 	positive_pool->end->next = NULL;
 	if(temp != positive_pool){
@@ -229,7 +299,8 @@ void* PositiveServer::fileHandler(void *lpVoid)
 	FILE *fp;
 	while(1)
 	{
-		if((dp = opendir(".")) == NULL)
+	    //scan_dir("www",m_webfiles,true);
+		if((dp = opendir("www")) == NULL)
 		{
 			perror("opendir html");
 			exit(-1);
@@ -449,6 +520,9 @@ void PositiveServer::loadConfig(){
 	 //监听端口
 	 m_http_port = iniparser_getint(ini, "global:port", NULL);
 	 cout<<m_http_port<<endl;
+	 //网站路径
+	 m_web_root = iniparser_getstring(ini,"global:web_root",NULL);
+	 cout<<m_web_root<<endl;
 	 m_max_socket_num = iniparser_getint(ini, "global:max_socket_num", NULL);
 	 cout<<m_max_socket_num<<endl;
 	 m_max_file_size_in_pool = iniparser_getint(ini, "global:max_file_size_in_pool", NULL);

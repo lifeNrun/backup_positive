@@ -18,6 +18,7 @@
 #include <inotifytools/inotify.h>
 #include "iniparser.h"
 #include "dictionary.h"
+#include <vector>
 #define HTTP_PORT 8088
 #define _MAX_SOCKFD_COUNT 50000
 //超过80M的文件不放在内存池里，只记录一下基本信息
@@ -80,8 +81,11 @@ class PositiveServer
 		static void * poolHandler(void *lpVoid);//对整个内存池进行处理
 		void initFiles();
 		void loadConfig();
+		void scan_dir(string basePath, vector<string>&files,bool searchSubDir);
 		static positive_pool_t*  sortLink(positive_pool_t *head);
+		static string m_web_root;
 	private:
+		vector<string> m_webfiles;
 		int m_http_port;
 		int m_max_socket_num;
 		int m_max_file_size_in_pool;

@@ -38,7 +38,7 @@ ifeq ($(config),debug)
   CXXFLAGS  += $(CFLAGS) 
   LDFLAGS   += -L../lib -L../lib/x64
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
-  LIBS      += -liniparser -ldl
+  LIBS      += -liniparser -lpthread -ldl
   LDDEPS    += 
   LINKCMD    = $(CXX) -o $(TARGET) $(OBJECTS) $(RESOURCES) $(ARCH) $(LIBS) $(LDFLAGS)
   define PREBUILDCMDS
@@ -60,7 +60,7 @@ ifeq ($(config),release)
   CXXFLAGS  += $(CFLAGS) 
   LDFLAGS   += -L../lib -L../lib/x64 -s
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
-  LIBS      += -liniparser -ldl
+  LIBS      += -liniparser -lpthread -ldl
   LDDEPS    += 
   LINKCMD    = $(CXX) -o $(TARGET) $(OBJECTS) $(RESOURCES) $(ARCH) $(LIBS) $(LDFLAGS)
   define PREBUILDCMDS
@@ -72,7 +72,7 @@ ifeq ($(config),release)
 endif
 
 OBJECTS := \
-	$(OBJDIR)/parserIni.o \
+	$(OBJDIR)/test.o \
 
 RESOURCES := \
 
@@ -137,7 +137,7 @@ endif
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 endif
 
-$(OBJDIR)/parserIni.o: src/parserIni.cpp
+$(OBJDIR)/test.o: src/test.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 

@@ -155,8 +155,10 @@ bool positiveHttp::checkRequest(int client_socket,positive_http_header_t parseIn
 	char *path;
 	int length 	= parseInfo.url.length();
 	if(length == 1){
+		
 		http_response[client_socket] = RES_OK;
-		requestUrl[client_socket] = "index.html";
+		requestUrl[client_socket] += PositiveServer::m_web_root;
+		requestUrl[client_socket] += "/index.html";
 		return true;
 	}
 	path = (char*)malloc((length+1)*sizeof(char));
@@ -170,11 +172,16 @@ bool positiveHttp::checkRequest(int client_socket,positive_http_header_t parseIn
 	//判断文件是否存在
 	positive_pool_t *pool;
 	pool = PositiveServer::positive_pool;
+	string realPath = "";
+	realPath += PositiveServer::m_web_root;
+	realPath += "/";
+	realPath += path;
+	cout<<"request path :"<<realPath<<endl;
 	while(pool != NULL)
 	{
-		if(strcmp(path,pool->name) == 0)
+		if(strcmp(realPath.c_str(),pool->name) == 0)
 		{
-			requestUrl[client_socket] = path;
+			requestUrl[client_socket] = realPath;
 			http_response[client_socket] = RES_OK;
 			free(path);
 			return true;
@@ -218,6 +225,7 @@ void positiveHttp::recvHttpRequest(int client_socket, int EpollFd)
      else//接收客户端发送过来的消息
      {
 		 httpRequest.append(buffer);
+		 //cout<<httpRequest<<endl;
 		 parseHttpRequest(httpRequest, &parseInfo);
 		 //检查解析信息
 		 checkRequest(client_socket ,parseInfo);
@@ -367,7 +375,7 @@ void positiveHttp::sendHttpResponse(int client_socket, int EpollFd)
 		positive_pool_t *pool;
 		pool = PositiveServer::positive_pool;
 		int length = requestUrl[client_socket].length();
-		cout<<"request file:"<<requestUrl[client_socket]<<endl;
+		cout<<"response file:"<<requestUrl[client_socket]<<endl;
 		char path[length+1];
 		requestUrl[client_socket].copy(path,length,0);
 		path[length] = '\0';

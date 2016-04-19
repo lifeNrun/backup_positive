@@ -5,12 +5,13 @@ project "test"
    language "C++"
 
    files { 
-      "src/parserIni.cpp",
+--      "src/parserIni.cpp",
+         "src/test.cpp",
 	  "../include/iniparser/*",
       "include/*.h"
    }
 if  _ACTION == "gmake" then
-   links { "iniparser", "dl" }
+   links { "iniparser","pthread", "dl" }
 --   links { "PocoDataSQLite", "PocoData", "PocoNet", "PocoXML", "PocoUtil", "PocoFoundation","inotifytools", "protobuf", "protobuf-lite", "pcap", "pthread", "dl" }
    excludes {
       "src/Protect.cpp",
