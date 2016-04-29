@@ -57,7 +57,10 @@ class positiveHttp
 			supportFiles["css"] = "Content-Type: text/css\r\n\r\n";
 			supportFiles["htm"] = "Content-Type: text/html; charset=utf-8\r\n\r\n";
 			supportFiles["html"] = "Content-Type: text/html; charset=utf-8\r\n\r\n";
+			supportFiles["php"] = "Content-Type: text/html; charset=utf-8\r\n\r\n";
 			serverName = "Server: Positive 1.0\r\n";
+			buffer_dynamic_website = (char*)malloc(MAX_DYNAMIC_BUFFER_SIZE*sizeof(char));
+			memset(buffer_dynamic_website,0,MAX_DYNAMIC_BUFFER_SIZE);
 		};
 		int sendHttpHead(int client_socket,int length);
 		void sendError(int client_socket);
@@ -74,6 +77,7 @@ class positiveHttp
 		static void* positive_process (void *arg1, void*arg2);
 		int pool_add_worker(void*(*process)(void*arg1,void*arg2), void*arg1,void *arg2);
 	private:
+		char *buffer_dynamic_website;
 		char buffer[HTTP_HEAD_SIZE];//用于接受或者发送数据的缓存数组
 		string serverName;
 		static thread_pool *pos_thread_pool;

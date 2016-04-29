@@ -26,3 +26,4 @@ solution "positive"
 
 include  "server"
 include  "test"
+include  "pget"

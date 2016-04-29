@@ -271,6 +271,7 @@ void PositiveServer::initFiles()
 		free(temp);//删除临时节点
 		temp = NULL;
 	}
+	
 	//文件管理线程
 	#if POOL_SORT
 	if(-1 == pthread_create(&m_FileHandlerThreadId,0,fileHandler,NULL))

@@ -26,6 +26,7 @@
 //如果文件大小超过2M就用线程池来处理
 #define MAX_FILE_SIZE_NEED_THREAD 1024*1024*2
 #define MAX_FILE_SIZE 1024*1024*600
+#define MAX_DYNAMIC_BUFFER_SIZE 1024*1024*30
 #define HTTP_BUFFER_SIZE 1024*1024
 #define HTTP_HEAD_SIZE 1024
 #define ERROR_BUFFER_SIZE 
@@ -70,6 +71,7 @@ class PositiveServer
 {
 	public:
 		static positive_pool_t *positive_pool;//内存池
+		//static positive_pool_t 
 		PositiveServer();
 		~PositiveServer();
 		void initDaemon();//初始化守护进程

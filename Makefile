@@ -6,7 +6,7 @@ ifndef config
 endif
 export config
 
-PROJECTS := server test
+PROJECTS := server test getServerInfo
 
 .PHONY: all clean help $(PROJECTS)
 
@@ -20,9 +20,14 @@ test:
 	@echo "==== Building test ($(config)) ===="
 	@${MAKE} --no-print-directory -C test -f Makefile
 
+getServerInfo: 
+	@echo "==== Building getServerInfo ($(config)) ===="
+	@${MAKE} --no-print-directory -C pget -f Makefile
+
 clean:
 	@${MAKE} --no-print-directory -C server -f Makefile clean
 	@${MAKE} --no-print-directory -C test -f Makefile clean
+	@${MAKE} --no-print-directory -C pget -f Makefile clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -36,5 +41,6 @@ help:
 	@echo "   clean"
 	@echo "   server"
 	@echo "   test"
+	@echo "   getServerInfo"
 	@echo ""
 	@echo "For more information, see http://industriousone.com/premake/quick-start"
